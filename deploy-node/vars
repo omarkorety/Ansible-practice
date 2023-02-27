@@ -1,0 +1,3 @@
+location: /home/omar/ansible-practice/the-app
+version: 1.0.0
+destination: /home/node_app

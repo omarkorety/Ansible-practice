@@ -1,0 +1,79 @@
+---
+
+- name: Install node and npm
+  hosts: 54.162.77.8
+  tasks:
+    - name: update apt and cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install npm
+      apt:
+        pkg:
+          - nodejs
+          - npm
+
+- name: create new user
+  hosts: 54.162.77.8    
+
+  tasks:
+    - name: create user
+      user:
+        name: node_app
+        comment: user to control the app
+        group: root
+        password: $y$j9T$MR9FjgwgVLLrnbaV6Rvym/$bZZaBCTWUwLul/DfI0pZ/tzMVmI0Nx0RV6W/Q4DFz95
+        #make this password by mkpasswd
+      register: user_creation_result
+    - debug: msg={{user_creation_result}}
+
+
+- name: deploy nodejs
+  hosts: 54.162.77.8
+  become: true
+  become_user: node_app
+  vars_files:
+    - vars
+  # vars:
+    # - location: /home/omar/ansible-practice/the-app
+    # - version: 1.0.0
+    # - destination: /home/node_app
+  tasks:
+    # - name: copy nodejs folder to the server
+    #   copy:
+    #     src: /home/omar/ansible-practice/the-app/nodejs-app-1.0.0.tgz
+    #     dest: /home/node_app/nodejs-app-1.0.0.tgz
+    # - name: unpacking the nodejs file
+    #   ansible.builtin.unarchive:
+    #     src: /home/node_app/nodejs-app-1.0.0.tgz
+    #     dest: /home/node_app/
+    #     remote_src: yes
+    #   register: user_creation_result
+    # - debug: msg={{user_creation_result}}
+
+    # we can use this task insted of two above
+    - name: unpacking the nodejs file
+      ansible.builtin.unarchive:
+        src: "{{location}}/nodejs-app-{{version}}.tgz"
+        dest: "{{destination}}"
+
+
+    - name: Install Depandacies
+      npm:
+        path: "{{destination}}/package"
+        # state: latest
+        
+    - name: start the application
+      ansible.builtin.command:
+        chdir: "{{destination}}/package/app"
+        cmd: node server
+        #to make the task play in background in the remote server 
+        # without it our playbook run will stuck at this task
+      async: 1000 
+      poll: 0
+    - name: ensure app is running
+      shell: pgrep -l node
+      register: app_status # to make the output of the module in variavle
+    - name: print the variavle
+      debug: msg={{app_status.stdout_lines}}
